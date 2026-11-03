@@ -13,6 +13,10 @@ Chose this over `invoice-ap-agent` (which matched the local design folder name).
 - **Alternative considered:** .NET/C# (native `decimal`, stack breadth; less reuse).
 
 ## Concepts
+- Digital PDF → image + real text layer. Scanned PDF → image + empty text layer; Claude reads the image.
+    When a PDF is sent to Claude, each page comes in two forms: an image of the page and the text extracted from it. A scanned invoice is just a picture of paper, so its text layer is empty. But Claude still gets the page image, so it reads the invoice from the picture instead.
+- Risk: hidden text can make extracted values differ from what the reviewer sees (fraud), or carry instructions to the AI (prompt injection).
+- Decision: base64 for the Phase 1 CLI. Each invoice is read once, so the Files API's upload step and stored-file management buy nothing. Revisit if we reprocess invoices (e.g., eval runs).
 
 ### How Claude reads a PDF
 - Each page is rendered as an image **and** its text layer is extracted; Claude sees both.
