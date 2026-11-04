@@ -33,3 +33,13 @@ Chose this over `invoice-ap-agent` (which matched the local design folder name).
 - Output can still break the schema: refusal, `max_tokens` truncation, enum capitalization. Check `stop_reason` before parsing.
 - Validation order: stop_reason → parse → schema → cross-checks.
 - Design idea (Todd): `lineItemCount` before `lineItems` as a self-consistency check. It catches skipped lines, but isn't independent of Claude. Decide when designing `Invoice`.
+
+### Decimal arithmetic for money
+- JS `number` is binary floating point. Halves, quarters, eighths are exact; 0.1 and 0.2 must be approximated, so `0.1 + 0.2 !== 0.3`.
+- Not a JS bug: same in C# `double` and Python `float`. C# `decimal` avoids it by storing base-10 digits.
+- Money fields are strings in the schema ("1450.00"), constrained by a regex pattern. JSON numbers become floats at JSON.parse(), losing precision before our code sees them.
+- Rule: money is never a `number`. String in → decimal for math → string out.
+- Integer cents fix float representation but not fractional-cent rules: unit prices like $0.0125, tax rates, discounts, allocations. Not all currencies have 2 decimals.
+- Decision: use a decimal library (specific library chosen when designing `Money`).
+- Open: rounding convention (half-up vs half-even, per-line vs total) and tolerance for 1-cent differences. Decide in Phase 3 matching.
+
