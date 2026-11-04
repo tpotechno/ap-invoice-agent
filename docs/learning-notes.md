@@ -25,3 +25,11 @@ Chose this over `invoice-ap-agent` (which matched the local design folder name).
 - Limits: no encrypted/password-protected PDFs, which need an exception path.
 - **Risk:** the text layer can differ from what's visible (hidden text), which is a fraud and prompt-injection channel. Invoice content is untrusted input.
 - Source: https://platform.claude.com/docs/en/build-with-claude/pdf-support
+
+### JSON schemas and structured output
+- A JSON schema describes the *shape* of JSON: field names, types, required vs optional. `additionalProperties: false` forbids any field not listed.
+- With structured output, Claude can't produce invalid shapes (constrained decoding: prevention). Our own validation catches bad data after the fact (detection).
+- Valid shape ≠ correct data. A schema-valid total can be misread, not match the line-item sum, or not match the PO. Our code recomputes and cross-checks; the schema only guarantees shape.
+- Output can still break the schema: refusal, `max_tokens` truncation, enum capitalization. Check `stop_reason` before parsing.
+- Validation order: stop_reason → parse → schema → cross-checks.
+- Design idea (Todd): `lineItemCount` before `lineItems` as a self-consistency check. It catches skipped lines, but isn't independent of Claude. Decide when designing `Invoice`.
