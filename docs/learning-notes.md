@@ -43,3 +43,24 @@ Chose this over `invoice-ap-agent` (which matched the local design folder name).
 - Decision: use a decimal library (specific library chosen when designing `Money`).
 - Open: rounding convention (half-up vs half-even, per-line vs total) and tolerance for 1-cent differences. Decide in Phase 3 matching.
 
+### 2026-11-03 — Decimal library: big.js (strict mode)
+- Exact for add/subtract/multiply; rounds only on division, to explicit decimal places with a chosen rounding mode.
+- Strict mode rejects JS numbers, a runtime guard behind our own `Money` constructor.
+- Considered: decimal.js (built-in TS types, but rounds every operation to significant digits); Dinero.js (v2 still alpha).
+- TS types come from `@types/big.js` (DefinitelyTyped). Verify version and maintenance on npm at install.
+
+### 2026-11-03 — Currency scope: single-currency only in v1
+- No FX conversion. Foreign-currency invoices go to the exception queue.
+
+### 2026-11-03 — Currency placement
+- Domain: every `Money` carries its own currency; mixing currencies throws.
+- Wire schema: `currency` emitted once per invoice (fewer schema fields); boundary code attaches it to each `Money`.
+
+### 2026-11-03 — `Money` class design (approved)
+- Private fields: `amount: Big`, `currency: string`; immutable.
+- Private constructor; `Money.of(amountString, currency)` is the only way in. It validates the string pattern and 3-uppercase-letter currency (shape only in v1).
+- `plus`/`minus` (currencies must match, or throw); `times(factorString)`. No money × money. No `dividedBy` until Phase 3 allocations.
+- `equals`: value equality ("1.50" == "1.5"); currency mismatch returns false. `compareTo` throws on mismatch.
+- `round(dp, mode)` with no default mode. `toFixed(dp)` and `toJSON()` with a string amount. Deliberately no `toNumber()`.
+- Negatives allowed (credit memos). Dedicated big.js constructor so global config can't leak in.
+
