@@ -64,3 +64,6 @@ Chose this over `invoice-ap-agent` (which matched the local design folder name).
 - `round(dp, mode)` with no default mode. `toFixed(dp)` and `toJSON()` with a string amount. Deliberately no `toNumber()`.
 - Negatives allowed (credit memos). Dedicated big.js constructor so global config can't leak in.
 
+### 2026-11-05 — Entity Framework: not used
+- EF is .NET-only; the backend is TypeScript. Data access will use a TypeScript approach, chosen when the database is first needed.
+
