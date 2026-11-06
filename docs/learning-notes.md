@@ -67,3 +67,8 @@ Chose this over `invoice-ap-agent` (which matched the local design folder name).
 ### 2026-11-05 — Entity Framework: not used
 - EF is .NET-only; the backend is TypeScript. Data access will use a TypeScript approach, chosen when the database is first needed.
 
+### 2026-11-05 — TypeScript 7 (backend)
+- Go-based compiler; same `typescript` package and `tsc` command. `strict` is now the default.
+- No stable programmatic API until 7.1, so API-based tools (typescript-eslint, Angular tooling) can't use it yet. The Angular UI will get its own package.json with its own TypeScript version in Phase 4.
+- `^7.0.2` allows 7.x updates; the lockfile pins the exact version.
+
