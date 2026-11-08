@@ -51,3 +51,8 @@ Phase 1 is underway: the project skeleton and the start of the `Money` type are 
 
 **Still open:** approval thresholds and roles, the database, and when email intake arrives.
 
+## License
+
+Copyright © 2026 Todd Oppel. All rights reserved. The code is public for viewing
+and evaluation; it may not be used, copied, modified or distributed without permission.
+See [LICENSE](LICENSE).
