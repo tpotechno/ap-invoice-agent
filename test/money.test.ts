@@ -13,8 +13,9 @@
 import { test } from "node:test";
 // Node's assertion library; the /strict variant compares with === (no type coercion).
 import assert from "node:assert/strict";
-// The class under test. The explicit .ts extension is allowed by our tsconfig.
-import { Money } from "../src/money.ts";
+// The class under test, plus its RoundingMode type (used to simulate a bad mode below).
+// `type` marks an import that exists only for TypeScript and is removed at runtime.
+import { Money, type RoundingMode } from "../src/money.ts";
 
 /**
  * Money.of accepts plain decimal strings: whole or with decimals,
@@ -94,5 +95,66 @@ test("toJSON keeps the exact value as a plain-notation string", () => {
   assert.equal(
     JSON.stringify(Money.of("0.00000001", "USD")),
     '{"amount":"0.00000001","currency":"USD"}',
+  );
+});
+
+/**
+ * halfUp: a value exactly halfway rounds away from zero.
+ * This is the "schoolbook" rounding most people expect.
+ */
+test("round halfUp rounds halfway values away from zero", () => {
+  // 1.005 is exactly halfway between 1.00 and 1.01, so it rounds up.
+  assert.equal(Money.of("1.005", "USD").round(2, "halfUp").toFixed(2), "1.01");
+  // 1.025 is halfway between 1.02 and 1.03, so it rounds up.
+  assert.equal(Money.of("1.025", "USD").round(2, "halfUp").toFixed(2), "1.03");
+  // For a negative amount, "away from zero" means more negative.
+  assert.equal(Money.of("-1.005", "USD").round(2, "halfUp").toFixed(2), "-1.01");
+  // Below halfway: rounds down in either mode.
+  assert.equal(Money.of("1.004", "USD").round(2, "halfUp").toFixed(2), "1.00");
+});
+
+/**
+ * halfEven ("banker's rounding"): a value exactly halfway rounds to the
+ * neighbor whose last digit is even, so over many values ties go up and down equally.
+ */
+test("round halfEven rounds halfway values to the even neighbor", () => {
+  // Halfway between 1.00 and 1.01: 1.00 ends in an even digit (0).
+  assert.equal(Money.of("1.005", "USD").round(2, "halfEven").toFixed(2), "1.00");
+  // Halfway between 1.01 and 1.02: 1.02 ends in an even digit (2).
+  assert.equal(Money.of("1.015", "USD").round(2, "halfEven").toFixed(2), "1.02");
+  // Halfway between 1.02 and 1.03: 1.02 is even, so it rounds DOWN, unlike halfUp.
+  assert.equal(Money.of("1.025", "USD").round(2, "halfEven").toFixed(2), "1.02");
+  // Negative: halfway between -1.00 and -1.01, and -1.00 is the even one.
+  assert.equal(Money.of("-1.005", "USD").round(2, "halfEven").toFixed(2), "-1.00");
+});
+
+/** round returns a new Money; the original keeps its exact value and both keep the currency. */
+test("round returns a new Money and leaves the original unchanged", () => {
+  // Create the original, then round it.
+  const original = Money.of("1.005", "CAD");
+  const rounded = original.round(2, "halfUp");
+  // The original still holds every digit.
+  assert.deepEqual(original.toJSON(), { amount: "1.005", currency: "CAD" });
+  // The result is rounded and keeps the same currency.
+  assert.deepEqual(rounded.toJSON(), { amount: "1.01", currency: "CAD" });
+});
+
+/** The decimal places must be a whole number, 0 or more. */
+test("round rejects invalid decimal places", () => {
+  // Negative (would round to tens) and fractional values make no sense for money.
+  for (const dp of [-1, 1.5]) {
+    assert.throws(() => Money.of("1.005", "USD").round(dp, "halfUp"), /Invalid decimal places/);
+  }
+});
+
+/**
+ * An unknown mode must throw. TypeScript blocks this at compile time, but plain
+ * JavaScript or a cast could still pass one, and big.js would then silently use its default.
+ */
+test("round rejects an unknown rounding mode", () => {
+  // `as RoundingMode` forces TypeScript to accept a bad value, to simulate that case.
+  assert.throws(
+    () => Money.of("1.005", "USD").round(2, "bogus" as RoundingMode),
+    /Invalid rounding mode/,
   );
 });

@@ -26,6 +26,22 @@ const AMOUNT_PATTERN = /^-?\d+(\.\d+)?$/;
 const CURRENCY_PATTERN = /^[A-Z]{3}$/;
 
 /**
+ * The rounding modes Money supports. There is deliberately no default:
+ * every call to {@link Money.round} must say which one it uses.
+ * - "halfUp":   halfway values round away from zero (1.005 -> 1.01).
+ * - "halfEven": halfway values round to the even neighbor (1.005 -> 1.00, 1.015 -> 1.02).
+ */
+// A union of string literals: only these two exact strings are allowed by TypeScript.
+export type RoundingMode = "halfUp" | "halfEven";
+
+// Maps each of our mode names to the matching big.js constant, so callers never see big.js.
+// `as const` keeps the exact values instead of widening them to `number`.
+const BIG_ROUNDING_MODES = {
+  halfUp: MoneyBig.roundHalfUp,
+  halfEven: MoneyBig.roundHalfEven,
+} as const;
+
+/**
  * An exact amount of money in a single currency.
  *
  * - Never stored as a JavaScript `number`: amounts go in and come out as strings.
@@ -110,5 +126,29 @@ export class Money {
     // in plain notation, never scientific notation like "1e-8".
     // Callers get string copies, never the private Big itself.
     return { amount: this.#amount.toFixed(), currency: this.#currency };
+  }
+
+  /**
+   * Rounds to `dp` decimal places using the given mode, returning a new Money.
+   * The original is unchanged, and the currency is kept.
+   * @param dp Number of decimal places: a whole number, 0 or more.
+   * @param mode Which rounding rule to apply; there is no default.
+   * @throws Error if `dp` is not a whole number >= 0, or `mode` is unknown.
+   * @example Money.of("1.005", "USD").round(2, "halfUp") // 1.01
+   */
+  round(dp: number, mode: RoundingMode): Money {
+    // Step 1: dp must be a whole number, 0 or more. (big.js would accept -1 and round to tens.)
+    if (!Number.isInteger(dp) || dp < 0) {
+      throw new Error(`Invalid decimal places: ${dp}`);
+    }
+    // Step 2: look up the big.js constant for this mode.
+    const bigMode = BIG_ROUNDING_MODES[mode];
+    // Step 3: an unknown mode gives `undefined`. big.js would silently use its default
+    // for undefined, so we throw instead.
+    if (bigMode === undefined) {
+      throw new Error(`Invalid rounding mode: "${mode}"`);
+    }
+    // Step 4: round (big.js returns a new Big) and wrap it in a new Money with the same currency.
+    return new Money(this.#amount.round(dp, bigMode), this.#currency);
   }
 }

@@ -81,3 +81,9 @@ Chose this over `invoice-ap-agent` (which matched the local design folder name).
   - 1450 → 1450 (unchanged) → "1450.00". 0.0125 → 0.01 (changed) → throws.
 - `toJSON()` uses big.js `toFixed()` with no argument: exact value, plain notation (never "1e-8"), no trailing zeros. `JSON.stringify` calls it automatically.
 - big.js drops trailing zeros internally ("1450.00" is stored as 1450) and prints -0 as "0".
+
+### Money: round(dp, mode)
+- Rounding modes only differ at ties (exactly halfway). halfUp: away from zero (1.005 → 1.01, -1.005 → -1.01). halfEven: to the even neighbor (1.005 → 1.00, 1.025 → 1.02), so no upward drift across many values.
+- `RoundingMode` is a union of string literals ("halfUp" | "halfEven"), like a C# enum. No default mode, so every call states one.
+- TypeScript types are erased at runtime. Values from .env, JSON, casts or plain JS bypass them, so the code also checks the mode at runtime (big.js would silently use its default for `undefined`).
+- We validate dp ourselves: big.js accepts -1 (rounds to tens).
