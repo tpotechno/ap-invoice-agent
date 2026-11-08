@@ -72,3 +72,12 @@ Chose this over `invoice-ap-agent` (which matched the local design folder name).
 - No stable programmatic API until 7.1, so API-based tools (typescript-eslint, Angular tooling) can't use it yet. The Angular UI will get its own package.json with its own TypeScript version in Phase 4.
 - `^7.0.2` allows 7.x updates; the lockfile pins the exact version.
 
+# Regex tests
+- Regex `.test()` matches anywhere in the string unless anchored. `^...$` forces the whole string to match. Without them, "$1,450" passes because "450" matches.
+- Our pattern is the business rule; big.js accepts more (e.g. "1e3").
+
+### Money: toFixed and toJSON
+- `toFixed(dp)` only pads, never rounds. Check: cut the value to `dp` decimals with roundDown; if that changes it, formatting would round, so throw.
+  - 1450 → 1450 (unchanged) → "1450.00". 0.0125 → 0.01 (changed) → throws.
+- `toJSON()` uses big.js `toFixed()` with no argument: exact value, plain notation (never "1e-8"), no trailing zeros. `JSON.stringify` calls it automatically.
+- big.js drops trailing zeros internally ("1450.00" is stored as 1450) and prints -0 as "0".
