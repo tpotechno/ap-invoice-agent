@@ -151,4 +151,44 @@ export class Money {
     // Step 4: round (big.js returns a new Big) and wrap it in a new Money with the same currency.
     return new Money(this.#amount.round(dp, bigMode), this.#currency);
   }
+
+  /**
+   * Adds another amount in the same currency, returning a new Money.
+   * Exact: no rounding happens.
+   * @param other The amount to add. Must have the same currency.
+   * @throws Error if the currencies differ.
+   * @example Money.of("0.1", "USD").plus(Money.of("0.2", "USD")) // 0.3
+   */
+  plus(other: Money): Money {
+    // Step 1: refuse to add amounts in different currencies.
+    this.#assertSameCurrency(other);
+    // Step 2: add the exact values (big.js returns a new Big) and wrap the result.
+    // Reading other.#amount is allowed: private fields are visible to any code inside this class.
+    return new Money(this.#amount.plus(other.#amount), this.#currency);
+  }
+
+  /**
+   * Subtracts another amount in the same currency, returning a new Money.
+   * Exact: no rounding happens. The result may be negative.
+   * @param other The amount to subtract. Must have the same currency.
+   * @throws Error if the currencies differ.
+   * @example Money.of("100.00", "USD").minus(Money.of("25.50", "USD")) // 74.5
+   */
+  minus(other: Money): Money {
+    // Step 1: refuse to subtract amounts in different currencies.
+    this.#assertSameCurrency(other);
+    // Step 2: subtract the exact values and wrap the result in a new Money.
+    return new Money(this.#amount.minus(other.#amount), this.#currency);
+  }
+
+  /**
+   * Throws if `other` is in a different currency from this Money.
+   * Private (`#`): used only by this class's own arithmetic methods.
+   */
+  #assertSameCurrency(other: Money): void {
+    // Compare the two currency codes; any difference is an error.
+    if (other.#currency !== this.#currency) {
+      throw new Error(`Currency mismatch: ${this.#currency} vs ${other.#currency}`);
+    }
+  }
 }

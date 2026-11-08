@@ -87,3 +87,9 @@ Chose this over `invoice-ap-agent` (which matched the local design folder name).
 - `RoundingMode` is a union of string literals ("halfUp" | "halfEven"), like a C# enum. No default mode, so every call states one.
 - TypeScript types are erased at runtime. Values from .env, JSON, casts or plain JS bypass them, so the code also checks the mode at runtime (big.js would silently use its default for `undefined`).
 - We validate dp ourselves: big.js accepts -1 (rounds to tens).
+
+### Money: plus and minus
+- Exact addition/subtraction: 0.1 + 0.2 = 0.3. No rounding involved.
+- Mixing currencies throws "Currency mismatch: USD vs CAD" (shared private helper #assertSameCurrency).
+- `#` privacy is per class, not per object: any code inside Money can read another Money's #amount. Same as C# private, but enforced by JavaScript at runtime.
+- Never expose the Big: callers could then skip the currency guard, round silently with Big's toFixed, or fall back to float math.

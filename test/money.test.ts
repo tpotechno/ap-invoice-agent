@@ -158,3 +158,44 @@ test("round rejects an unknown rounding mode", () => {
     /Invalid rounding mode/,
   );
 });
+
+/**
+ * plus adds exactly. This is the float bug Money exists to prevent:
+ * in plain JavaScript, 0.1 + 0.2 gives 0.30000000000000004.
+ */
+test("plus adds exactly, with no floating-point error", () => {
+  // The classic float example comes out exact.
+  assert.equal(Money.of("0.1", "USD").plus(Money.of("0.2", "USD")).toJSON().amount, "0.3");
+  // Every digit of a sub-cent unit price is kept; nothing is rounded.
+  assert.equal(Money.of("1450.00", "USD").plus(Money.of("0.0125", "USD")).toJSON().amount, "1450.0125");
+});
+
+/** minus subtracts exactly, and the result may be negative (e.g. a credit larger than the balance). */
+test("minus subtracts exactly and can go negative", () => {
+  // A normal subtraction.
+  assert.equal(Money.of("100.00", "USD").minus(Money.of("25.50", "USD")).toJSON().amount, "74.5");
+  // Subtracting more than you have gives a negative amount.
+  assert.equal(Money.of("10", "USD").minus(Money.of("25.50", "USD")).toJSON().amount, "-15.5");
+});
+
+/** Adding or subtracting different currencies has no meaning without an exchange rate, so it throws. */
+test("plus and minus refuse to mix currencies", () => {
+  // Create one amount in each currency.
+  const usd = Money.of("10", "USD");
+  const cad = Money.of("10", "CAD");
+  // Both operations must refuse, and say why.
+  assert.throws(() => usd.plus(cad), /Currency mismatch/);
+  assert.throws(() => usd.minus(cad), /Currency mismatch/);
+});
+
+/** plus and minus return a new Money; neither input changes. */
+test("plus and minus leave both inputs unchanged", () => {
+  // Two inputs, then one of each operation.
+  const a = Money.of("10", "USD");
+  const b = Money.of("2.50", "USD");
+  a.plus(b);
+  a.minus(b);
+  // Both still hold their original values.
+  assert.equal(a.toJSON().amount, "10");
+  assert.equal(b.toJSON().amount, "2.5");
+});
