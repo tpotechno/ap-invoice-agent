@@ -1,3 +1,5 @@
+// Import the big.js library. `Big` is both a constructor (to create numbers)
+// and a type (the type of a Big number).
 import Big from "big.js";
 
 /**
@@ -6,13 +8,21 @@ import Big from "big.js";
  * elsewhere in the app can't affect money arithmetic.
  * Strict mode makes it throw if given a JavaScript number, so floats can't sneak in.
  */
+// Calling Big() with no arguments creates a new, independent constructor with its own settings.
 const MoneyBig = Big();
+// Turn on strict mode for this constructor only: passing a JS number now throws.
 MoneyBig.strict = true;
 
 /** Optional minus, digits, then optionally a dot and more digits. No symbols, commas, spaces or exponents. */
+// ^       start of the string (nothing may come before)
+// -?      an optional minus sign
+// \d+     one or more digits
+// (\.\d+)? optionally: a literal dot followed by one or more digits
+// $       end of the string (nothing may come after)
 const AMOUNT_PATTERN = /^-?\d+(\.\d+)?$/;
 
 /** Exactly three uppercase letters, e.g. "USD". Checks the shape only, not that the code is a real ISO 4217 currency. */
+// ^ and $ anchor the whole string; [A-Z]{3} means exactly three characters from A to Z.
 const CURRENCY_PATTERN = /^[A-Z]{3}$/;
 
 /**
@@ -23,11 +33,14 @@ const CURRENCY_PATTERN = /^[A-Z]{3}$/;
  * - Created only through {@link Money.of}, which validates its input.
  * - Never rounds implicitly: rounding must be requested explicitly.
  */
+// `export` makes the class available to other files (e.g. the tests) via import.
 export class Money {
   /** The exact decimal value. Private (`#`) at runtime, so callers can't reach the Big. */
+  // `#` = truly private at runtime; `readonly` = can only be set in the constructor.
   readonly #amount: Big;
 
   /** The ISO 4217 currency code, e.g. "USD". */
+  // Also private and read-only, so a Money's currency can never change.
   readonly #currency: string;
 
   /**
@@ -35,7 +48,9 @@ export class Money {
    * @param amount An already-validated Big value.
    * @param currency An already-validated currency code.
    */
+  // `private` means code outside this class can't call `new Money(...)` (checked by TypeScript).
   private constructor(amount: Big, currency: string) {
+    // Store the validated values in the private fields. This is the only place they are ever set.
     this.#amount = amount;
     this.#currency = currency;
   }
@@ -47,13 +62,18 @@ export class Money {
    * @throws Error if the amount or currency is malformed.
    * @example Money.of("1450.00", "USD")
    */
+  // `static` means it's called on the class itself: Money.of(...), not on an instance.
   static of(amount: string, currency: string): Money {
+    // Step 1: reject the amount unless the whole string matches the plain-decimal pattern.
     if (!AMOUNT_PATTERN.test(amount)) {
       throw new Error(`Invalid amount: "${amount}"`);
     }
+    // Step 2: reject the currency unless it is exactly three uppercase letters.
     if (!CURRENCY_PATTERN.test(currency)) {
       throw new Error(`Invalid currency: "${currency}"`);
     }
+    // Step 3: both are valid, so convert the string to an exact Big value
+    // and call the private constructor (allowed here because we're inside the class).
     return new Money(new MoneyBig(amount), currency);
   }
 
@@ -66,9 +86,15 @@ export class Money {
    * @throws Error if formatting would round the value.
    */
   toFixed(dp: number): string {
+    // Step 1: cut the value down to `dp` decimal places (roundDown = truncate),
+    // giving a new Big; the original is unchanged because Big values are immutable.
+    // Step 2: compare that cut value to the original with .eq().
+    //   Equal     -> the value already fits in `dp` decimals; nothing would be rounded.
+    //   Not equal -> digits were cut off, so formatting would have to round: throw.
     if (!this.#amount.round(dp, MoneyBig.roundDown).eq(this.#amount)) {
       throw new Error(`toFixed(${dp}) would round ${this.#amount.toFixed()}; round it explicitly first`);
     }
+    // Step 3: the value fits, so big.js's toFixed only pads with zeros (e.g. 1450 -> "1450.00").
     return this.#amount.toFixed(dp);
   }
 
@@ -80,6 +106,9 @@ export class Money {
    * @returns e.g. `{ amount: "1450", currency: "USD" }`
    */
   toJSON(): { amount: string; currency: string } {
+    // Build a plain object. big.js's toFixed() with no argument returns every digit
+    // in plain notation, never scientific notation like "1e-8".
+    // Callers get string copies, never the private Big itself.
     return { amount: this.#amount.toFixed(), currency: this.#currency };
   }
 }
