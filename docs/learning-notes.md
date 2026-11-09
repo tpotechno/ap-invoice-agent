@@ -99,3 +99,9 @@ Chose this over `invoice-ap-agent` (which matched the local design folder name).
 - Exact: 1450 × 0.07375 = 106.9375, unrounded. Flow: times → round(2, mode) → toFixed(2) = "106.94".
 - No currency check needed: the factor has no currency. plus/minus need one because both sides are money.
 - Renamed AMOUNT_PATTERN → DECIMAL_PATTERN once it validated factors too (VS Code F2 = Rename Symbol).
+
+### Money: equals, compareTo, isZero, isNegative
+- equals: value equality ("1.50" == "1.5"); different currencies → false (truthfully "not the same"). Uses `&&` short-circuit.
+- compareTo: -1 | 0 | 1; different currencies → throws (no truthful order without an exchange rate).
+- big.js stores a sign on zero (-0, and e.g. -5 × 0). isNegative uses lt(ZERO), not the sign, so -0 is not negative.
+- Strict mode rejects even the number 0 in comparisons, so ZERO is built from the string "0" (safe to share: Big is immutable).

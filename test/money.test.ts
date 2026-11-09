@@ -239,3 +239,58 @@ test("times leaves the original unchanged and keeps the currency", () => {
   assert.deepEqual(price.toJSON(), { amount: "2.5", currency: "CAD" });
   assert.deepEqual(total.toJSON(), { amount: "10", currency: "CAD" });
 });
+
+/**
+ * equals compares values, not formatting: "1.50" and "1.5" are the same amount.
+ * Different currencies are simply not equal (no error: the honest answer is "no").
+ */
+test("equals compares value and currency", () => {
+  // Same value written two ways: equal.
+  assert.equal(Money.of("1.50", "USD").equals(Money.of("1.5", "USD")), true);
+  // Different values: not equal.
+  assert.equal(Money.of("1.50", "USD").equals(Money.of("1.51", "USD")), false);
+  // Same number, different currency: not equal, and no error.
+  assert.equal(Money.of("10", "USD").equals(Money.of("10", "CAD")), false);
+  // Negative zero is the same amount as zero.
+  assert.equal(Money.of("-0", "USD").equals(Money.of("0", "USD")), true);
+});
+
+/**
+ * compareTo returns -1 (less), 0 (equal) or 1 (greater), for sorting and thresholds.
+ * "Is USD 5 more than CAD 5?" has no answer without an exchange rate, so mixing currencies throws.
+ */
+test("compareTo orders amounts and refuses to mix currencies", () => {
+  // Greater, less, and equal (formatting differences don't matter).
+  assert.equal(Money.of("10", "USD").compareTo(Money.of("2.50", "USD")), 1);
+  assert.equal(Money.of("2.50", "USD").compareTo(Money.of("10", "USD")), -1);
+  assert.equal(Money.of("1450.00", "USD").compareTo(Money.of("1450", "USD")), 0);
+  // Any negative amount is less than any positive one.
+  assert.equal(Money.of("-5", "USD").compareTo(Money.of("3", "USD")), -1);
+  // Different currencies: no meaningful order, so it throws.
+  assert.throws(() => Money.of("5", "USD").compareTo(Money.of("5", "CAD")), /Currency mismatch/);
+});
+
+/** isZero is true for zero however it is written, including negative zero. */
+test("isZero recognizes every form of zero", () => {
+  // All of these are zero.
+  for (const amount of ["0", "0.00", "-0", "-0.00"]) {
+    assert.equal(Money.of(amount, "USD").isZero(), true);
+  }
+  // The smallest cent is not zero.
+  assert.equal(Money.of("0.01", "USD").isZero(), false);
+});
+
+/**
+ * isNegative is true only for amounts below zero. Negative zero is NOT negative:
+ * it can arise from arithmetic, e.g. a credit of -5 times a quantity of 0.
+ */
+test("isNegative is true only below zero, never for negative zero", () => {
+  // Below zero, even by a cent.
+  assert.equal(Money.of("-0.01", "USD").isNegative(), true);
+  // Zero and positive amounts are not negative.
+  assert.equal(Money.of("0", "USD").isNegative(), false);
+  assert.equal(Money.of("5", "USD").isNegative(), false);
+  // Negative zero, written directly and produced by arithmetic.
+  assert.equal(Money.of("-0", "USD").isNegative(), false);
+  assert.equal(Money.of("-5", "USD").times("0").isNegative(), false);
+});

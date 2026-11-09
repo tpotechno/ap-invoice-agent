@@ -28,6 +28,9 @@ const DECIMAL_PATTERN = /^-?\d+(\.\d+)?$/;
 // ^ and $ anchor the whole string; [A-Z]{3} means exactly three characters from A to Z.
 const CURRENCY_PATTERN = /^[A-Z]{3}$/;
 
+/** Zero as a Big, for comparisons. (Strict mode rejects the JavaScript number 0, so we use a string.) */
+const ZERO = new MoneyBig("0");
+
 /**
  * The rounding modes Money supports. There is deliberately no default:
  * every call to {@link Money.round} must say which one it uses.
@@ -199,6 +202,47 @@ export class Money {
     // Step 2: multiply exactly. MoneyBig's strict mode accepts the string, and
     // big.js returns a new Big; wrap it in a new Money with the same currency.
     return new Money(this.#amount.times(new MoneyBig(factor)), this.#currency);
+  }
+
+  /**
+   * True if both amounts are the same value in the same currency.
+   * Compares values, not formatting: "1.50" equals "1.5".
+   * Different currencies are simply not equal; this never throws.
+   * @param other The amount to compare with.
+   */
+  equals(other: Money): boolean {
+    // Step 1: different currencies can't be equal, so answer false (no error).
+    // Step 2: same currency, so compare the exact values with big.js .eq().
+    // `&&` stops at the first false, so step 2 only runs when step 1 passes.
+    return this.#currency === other.#currency && this.#amount.eq(other.#amount);
+  }
+
+  /**
+   * Orders two amounts in the same currency, for sorting and thresholds.
+   * @param other The amount to compare with. Must have the same currency.
+   * @returns -1 if this is less, 0 if equal, 1 if greater.
+   * @throws Error if the currencies differ (there is no order without an exchange rate).
+   */
+  compareTo(other: Money): -1 | 0 | 1 {
+    // Step 1: refuse to compare amounts in different currencies.
+    this.#assertSameCurrency(other);
+    // Step 2: big.js .cmp() returns -1, 0 or 1 by comparing the exact values.
+    return this.#amount.cmp(other.#amount);
+  }
+
+  /** True if the amount is zero, including "0.00" and negative zero. */
+  isZero(): boolean {
+    // .eq() compares values, so 0, 0.00 and -0 all equal ZERO.
+    return this.#amount.eq(ZERO);
+  }
+
+  /**
+   * True if the amount is below zero. Negative zero is not negative.
+   * (big.js stores a sign on zero, so checking the sign alone would get -0 wrong.)
+   */
+  isNegative(): boolean {
+    // .lt() means "less than": -0 is not less than 0, so it correctly returns false.
+    return this.#amount.lt(ZERO);
   }
 
   /**
