@@ -93,3 +93,9 @@ Chose this over `invoice-ap-agent` (which matched the local design folder name).
 - Mixing currencies throws "Currency mismatch: USD vs CAD" (shared private helper #assertSameCurrency).
 - `#` privacy is per class, not per object: any code inside Money can read another Money's #amount. Same as C# private, but enforced by JavaScript at runtime.
 - Never expose the Big: callers could then skip the currency guard, round silently with Big's toFixed, or fall back to float math.
+
+### Money: times(factor)
+- Factor is a plain decimal string (quantity, rate, discount), never a number (1.1 * 3 = 3.3000000000000003 in JS) and never Money ($ × $ is meaningless).
+- Exact: 1450 × 0.07375 = 106.9375, unrounded. Flow: times → round(2, mode) → toFixed(2) = "106.94".
+- No currency check needed: the factor has no currency. plus/minus need one because both sides are money.
+- Renamed AMOUNT_PATTERN → DECIMAL_PATTERN once it validated factors too (VS Code F2 = Rename Symbol).

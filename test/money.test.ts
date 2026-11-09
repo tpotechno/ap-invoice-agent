@@ -199,3 +199,43 @@ test("plus and minus leave both inputs unchanged", () => {
   assert.equal(a.toJSON().amount, "10");
   assert.equal(b.toJSON().amount, "2.5");
 });
+
+/**
+ * times multiplies by a plain decimal factor given as a string: a quantity,
+ * a tax rate or a discount. The result is exact; nothing is rounded.
+ */
+test("times multiplies exactly by a string factor", () => {
+  // Quantity x unit price: 400 bolts at $0.0125 each is exactly $5.
+  assert.equal(Money.of("0.0125", "USD").times("400").toJSON().amount, "5");
+  // Float trap: in plain JavaScript, 1.1 * 3 gives 3.3000000000000003.
+  assert.equal(Money.of("1.1", "USD").times("3").toJSON().amount, "3.3");
+  // A tax rate keeps every digit: 1450 x 7.375% = 106.9375, with no rounding yet.
+  assert.equal(Money.of("1450.00", "USD").times("0.07375").toJSON().amount, "106.9375");
+  // A negative factor (e.g. returned items) gives a negative amount.
+  assert.equal(Money.of("25.50", "USD").times("-2").toJSON().amount, "-51");
+});
+
+/** The intended flow: multiply exactly, then round explicitly, then format. */
+test("times then round then toFixed gives a payable tax amount", () => {
+  // 106.9375 rounded half-up to cents is 106.94.
+  const tax = Money.of("1450.00", "USD").times("0.07375").round(2, "halfUp");
+  assert.equal(tax.toFixed(2), "106.94");
+});
+
+/** The factor must be a plain decimal string, by the same rule as Money.of amounts. */
+test("times rejects malformed factors", () => {
+  // Each entry breaks the plain-decimal rule.
+  for (const factor of ["1e3", "abc", "", " 2", "$2"]) {
+    assert.throws(() => Money.of("10", "USD").times(factor), /Invalid factor/);
+  }
+});
+
+/** times returns a new Money; the original keeps its value and the currency is kept. */
+test("times leaves the original unchanged and keeps the currency", () => {
+  // Multiply an amount in a non-USD currency.
+  const price = Money.of("2.50", "CAD");
+  const total = price.times("4");
+  // The original is unchanged; the result has the same currency.
+  assert.deepEqual(price.toJSON(), { amount: "2.5", currency: "CAD" });
+  assert.deepEqual(total.toJSON(), { amount: "10", currency: "CAD" });
+});

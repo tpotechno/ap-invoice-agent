@@ -13,13 +13,16 @@ const MoneyBig = Big();
 // Turn on strict mode for this constructor only: passing a JS number now throws.
 MoneyBig.strict = true;
 
-/** Optional minus, digits, then optionally a dot and more digits. No symbols, commas, spaces or exponents. */
+/**
+ * A plain decimal string: optional minus, digits, then optionally a dot and more digits.
+ * No symbols, commas, spaces or exponents. Used for amounts and for multiplication factors.
+ */
 // ^       start of the string (nothing may come before)
 // -?      an optional minus sign
 // \d+     one or more digits
 // (\.\d+)? optionally: a literal dot followed by one or more digits
 // $       end of the string (nothing may come after)
-const AMOUNT_PATTERN = /^-?\d+(\.\d+)?$/;
+const DECIMAL_PATTERN = /^-?\d+(\.\d+)?$/;
 
 /** Exactly three uppercase letters, e.g. "USD". Checks the shape only, not that the code is a real ISO 4217 currency. */
 // ^ and $ anchor the whole string; [A-Z]{3} means exactly three characters from A to Z.
@@ -81,7 +84,7 @@ export class Money {
   // `static` means it's called on the class itself: Money.of(...), not on an instance.
   static of(amount: string, currency: string): Money {
     // Step 1: reject the amount unless the whole string matches the plain-decimal pattern.
-    if (!AMOUNT_PATTERN.test(amount)) {
+    if (!DECIMAL_PATTERN.test(amount)) {
       throw new Error(`Invalid amount: "${amount}"`);
     }
     // Step 2: reject the currency unless it is exactly three uppercase letters.
@@ -179,6 +182,23 @@ export class Money {
     this.#assertSameCurrency(other);
     // Step 2: subtract the exact values and wrap the result in a new Money.
     return new Money(this.#amount.minus(other.#amount), this.#currency);
+  }
+
+  /**
+   * Multiplies by a plain decimal factor, returning a new Money in the same currency.
+   * Exact: no rounding happens, so the result may have more decimal places.
+   * @param factor A quantity, rate or discount as a string, e.g. "400" or "0.07375".
+   * @throws Error if the factor is not a plain decimal string.
+   * @example Money.of("0.0125", "USD").times("400") // 5
+   */
+  times(factor: string): Money {
+    // Step 1: the factor must be a plain decimal string, by the same rule as amounts.
+    if (!DECIMAL_PATTERN.test(factor)) {
+      throw new Error(`Invalid factor: "${factor}"`);
+    }
+    // Step 2: multiply exactly. MoneyBig's strict mode accepts the string, and
+    // big.js returns a new Big; wrap it in a new Money with the same currency.
+    return new Money(this.#amount.times(new MoneyBig(factor)), this.#currency);
   }
 
   /**
