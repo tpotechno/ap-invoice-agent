@@ -2,6 +2,9 @@
 // and a type (the type of a Big number).
 import Big from "big.js";
 
+// The shared validation patterns (also used by the invoice schema).
+import { CURRENCY_PATTERN, DECIMAL_PATTERN } from "./patterns.ts";
+
 /**
  * A big.js constructor used only for money.
  * Creating our own (rather than using the global `Big`) means settings changed
@@ -13,20 +16,6 @@ const MoneyBig = Big();
 // Turn on strict mode for this constructor only: passing a JS number now throws.
 MoneyBig.strict = true;
 
-/**
- * A plain decimal string: optional minus, digits, then optionally a dot and more digits.
- * No symbols, commas, spaces or exponents. Used for amounts and for multiplication factors.
- */
-// ^       start of the string (nothing may come before)
-// -?      an optional minus sign
-// \d+     one or more digits
-// (\.\d+)? optionally: a literal dot followed by one or more digits
-// $       end of the string (nothing may come after)
-const DECIMAL_PATTERN = /^-?\d+(\.\d+)?$/;
-
-/** Exactly three uppercase letters, e.g. "USD". Checks the shape only, not that the code is a real ISO 4217 currency. */
-// ^ and $ anchor the whole string; [A-Z]{3} means exactly three characters from A to Z.
-const CURRENCY_PATTERN = /^[A-Z]{3}$/;
 
 /** Zero as a Big, for comparisons. (Strict mode rejects the JavaScript number 0, so we use a string.) */
 const ZERO = new MoneyBig("0");

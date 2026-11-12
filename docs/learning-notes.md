@@ -105,3 +105,11 @@ Chose this over `invoice-ap-agent` (which matched the local design folder name).
 - compareTo: -1 | 0 | 1; different currencies → throws (no truthful order without an exchange rate).
 - big.js stores a sign on zero (-0, and e.g. -5 × 0). isNegative uses lt(ZERO), not the sign, so -0 is not negative.
 - Strict mode rejects even the number 0 in comparisons, so ZERO is built from the string "0" (safe to share: Big is immutable).
+
+### Zod
+- One schema → runtime validator (safeParse/parse) + TypeScript type (z.infer). Same source, so they can't drift apart.
+- Needed because TS types vanish at runtime; Claude's JSON, .env and API requests arrive unchecked.
+- The SDK strips unsupported constraints (our regex, min/max) from the schema sent to Claude, but safeParse still checks the full Zod schema on the reply. Money.of is the backup check.
+- safeParse returns { success, data | error } and never throws: all issues at once, our code decides the outcome (e.g. exception queue). parse throws on the first failure.
+- z.object silently drops unknown keys; z.strictObject rejects them.
+- .nullable() becomes ["string","null"] in JSON Schema and counts toward structured output's 16 union/nullable limit.
